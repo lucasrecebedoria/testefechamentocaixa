@@ -296,8 +296,13 @@ function printThermalReceipt(data) {
   const now = new Date();
   const dt = now.toLocaleString('pt-BR');
 
-  // Converte data do caixa para formato brasileiro
-  const dataCaixaBR = data.dataCaixa ? new Date(data.dataCaixa).toLocaleDateString("pt-BR") : "";
+  // Converte "2025-08-25" para "25/08/2025"
+  function formatISOtoBR(isoDate) {
+    if (!isoDate) return "";
+    const [year, month, day] = isoDate.split("-");
+    return `${day}/${month}/${year}`;
+  }
+  const dataCaixaBR = formatISOtoBR(data.dataCaixa);
 
   const html = `<!DOCTYPE html>
   <html><head><meta charset="utf-8">
