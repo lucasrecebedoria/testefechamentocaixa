@@ -329,7 +329,7 @@ async function gerarRelatorioPDF() {
 
   // === Inserir logo no cabeçalho ===
   const logo = new Image();
-  logo.src = "./assets/logo.png"; // usa a mesma logo do site
+  logo.src = "./assets/logo.png";
 
   logo.onload = async () => {
     const pageWidth = docpdf.internal.pageSize.getWidth();
@@ -362,159 +362,96 @@ async function gerarRelatorioPDF() {
     docpdf.text(`Data: ${dataHoraBR}`, 40, y); 
     y += 22;
 
-    // ============= Lançamentos =============
+    // =============================
+    // LANÇAMENTOS EM TABELA
+    // =============================
     const lref = collection(db, 'users', uid, 'caixas', cid, 'lancamentos');
     const lqs = await getDocs(query(lref, orderBy('createdAt','asc')));
 
-    docpdf.setFont('helvetica','bold');
-    docpdf.text('Detalhamento dos lançamentos:', 40, y);
-    y += 16;
-    docpdf.setFont('helvetica','normal');
-
+    const lancamentosBody = [];
     let total = 0;
     lqs.forEach(d => {
       const x = d.data();
-      const line = `${x.dataCaixa} | ${x.prefixo} | ${x.tipoValidador} | Qtd:${x.qtdBordos} | Valor: ${fmtMoney(x.valor)} | Mot:${x.matriculaMotorista}`;
-      if (y > 760) { docpdf.addPage(); y = 40; }
-      docpdf.text(line, 40, y);
-      y += 14;
-      total += Number(x.valor||0);
+      lancamentosBody.push([
+        x.dataCaixa || '',
+        x.prefixo || '',
+        x.tipoValidador || '',
+        x.qtdBordos || '',
+        fmtMoney(x.valor) || 'R$ 0,00',
+        x.matriculaMotorista || ''
+      ]);
+      total += Number(x.valor || 0);
     });
 
-    // ============= Sangrias =============
-    y += 14;
-    docpdf.setFont('helvetica','bold');
-    docpdf.text('Sangrias registradas:', 40, y);
-    y += 16;
-    docpdf.setFont('helvetica','normal');
+    docpdf.autoTable({
+      startY: y,
+      head: [['Data Caixa','Prefixo','Validador','Qtd Bordos','Valor','Motorista']],
+      body: lancamentosBody,
+      theme: 'grid',
+      headStyles: { fillColor: [200,200,200], textColor: 20, fontStyle: 'bold' },
+      styles: { fontSize: 10, halign: 'center' },
+      columnStyles: {
+        0: { halign: 'center' },
+        1: { halign: 'center' },
+        2: { halign: 'center' },
+        3: { halign: 'center' },
+        4: { halign: 'right' },
+        5: { halign: 'center' }
+      }
+    });
 
+    y = docpdf.lastAutoTable.finalY + 20;
+
+    // =============================
+    // SANGRIAS EM TABELA
+    // =============================
     const sref = collection(db, 'users', uid, 'caixas', cid, 'sangrias');
     const sqs = await getDocs(query(sref, orderBy('createdAt','asc')));
-
+    const sangriasBody = [];
     let totalS = 0;
-    if (sqs.empty) { 
-      docpdf.text('— Nenhuma', 40, y); 
-      y += 14; 
+
+    if (sqs.empty) {
+      sangriasBody.push(['— Nenhuma', '']);
     } else {
       sqs.forEach(d => {
         const x = d.data();
-        const line = `${fmtMoney(x.valor)} — Motivo: ${x.motivo}`;
-        if (y > 760) { docpdf.addPage(); y = 40; }
-        docpdf.text(line, 40, y);
-        y += 14;
-        totalS += Number(x.valor||0);
+        sangriasBody.push([
+          fmtMoney(x.valor),
+          x.motivo || ''
+        ]);
+        totalS += Number(x.valor || 0);
       });
     }
 
-    // ============= Totais =============
-    y += 14;
-    docpdf.setFont('helvetica','bold');
-    docpdf.text(`TOTAL LANÇAMENTOS: ${fmtMoney(total)}`, 40, y); y += 16;
-    docpdf.text(`TOTAL SANGRIAS: ${fmtMoney(totalS)}`, 40, y); y += 16;
-    docpdf.text(`TOTAL CORRIGIDO: ${fmtMoney(total - totalS)}`, 40, y); y += 22;
+    docpdf.autoTable({
+      startY: y,
+      head: [['Valor','Motivo']],
+      body: sangriasBody,
+      theme: 'grid',
+      headStyles: { fillColor: [200,200,200], textColor: 20, fontStyle: 'bold' },
+      styles: { fontSize: 10, halign: 'center' },
+      columnStyles: {
+        0: { halign: 'right' },
+        1: { halign: 'left' }
+      }
+    });
 
-    // Rodapé
+    y = docpdf.lastAutoTable.finalY + 20;
+
+    // =============================
+    // TOTAIS
+    // =============================
+    docpdf.setFont('helvetica','bold');
+    docpdf.text(`TOTAL LANÇAMENTOS: ${fmtMoney(total)}`, 40, y); y+=16;
+    docpdf.text(`TOTAL SANGRIAS: ${fmtMoney(totalS)}`, 40, y); y+=16;
+    docpdf.text(`TOTAL CORRIGIDO: ${fmtMoney(total - totalS)}`, 40, y); y+=22;
     docpdf.setFont('helvetica','normal');
     docpdf.text('Fechamento resumido configurado para A4. Documento gerado automaticamente.', 40, y);
 
-    // Salvar arquivo
-        const fileName = `${currentUserDoc.matricula}-${todayISO()}.pdf`;
+    // Nome do arquivo no padrão brasileiro
+    const hojeNome = hoje.toLocaleDateString("pt-BR").replace(/\//g, "-");
+    const fileName = `${currentUserDoc.matricula}-${hojeNome}.pdf`;
+
     docpdf.save(fileName);
   }; // fecha logo.onload
 }   // fecha gerarRelatorioPDF
-
-  // =============================
-  // LANÇAMENTOS EM TABELA
-  // =============================
-  const lancamentosBody = [];
-  let total = 0;
-  lqs.forEach(d => {
-    const x = d.data();
-    lancamentosBody.push([
-      x.dataCaixa || '',
-      x.prefixo || '',
-      x.tipoValidador || '',
-      x.qtdBordos || '',
-      fmtMoney(x.valor) || 'R$ 0,00',
-      x.matriculaMotorista || ''
-    ]);
-    total += Number(x.valor || 0);
-  });
-
-  docpdf.autoTable({
-    startY: y,
-    head: [['Data Caixa','Prefixo','Validador','Qtd Bordos','Valor','Motorista']],
-    body: lancamentosBody,
-    theme: 'grid',
-    headStyles: { fillColor: [200,200,200], textColor: 20, fontStyle: 'bold' },
-    styles: { fontSize: 10, halign: 'center' },
-    columnStyles: {
-      0: { halign: 'center' },
-      1: { halign: 'center' },
-      2: { halign: 'center' },
-      3: { halign: 'center' },
-      4: { halign: 'right' },
-      5: { halign: 'center' }
-    }
-  });
-
-  y = docpdf.lastAutoTable.finalY + 20;
-
-  // =============================
-  // SANGRIAS EM TABELA
-  // =============================
-  const sangriasBody = [];
-  let totalS = 0;
-  if (sqs.empty) {
-    sangriasBody.push(['— Nenhuma', '']);
-  } else {
-    sqs.forEach(d => {
-      const x = d.data();
-      sangriasBody.push([
-        fmtMoney(x.valor),
-        x.motivo || ''
-      ]);
-      totalS += Number(x.valor || 0);
-    });
-  }
-
-  docpdf.autoTable({
-    startY: y,
-    head: [['Valor','Motivo']],
-    body: sangriasBody,
-    theme: 'grid',
-    headStyles: { fillColor: [200,200,200], textColor: 20, fontStyle: 'bold' },
-    styles: { fontSize: 10, halign: 'center' },
-    columnStyles: {
-      0: { halign: 'right' },
-      1: { halign: 'left' }
-    }
-  });
-
-  y = docpdf.lastAutoTable.finalY + 20;
-
-  // =============================
-  // TOTAIS
-  // =============================
-  docpdf.setFont('helvetica','bold');
-  docpdf.text(`TOTAL LANÇAMENTOS: ${fmtMoney(total)}`, 40, y); y+=16;
-  docpdf.text(`TOTAL SANGRIAS: ${fmtMoney(totalS)}`, 40, y); y+=16;
-  docpdf.text(`TOTAL CORRIGIDO: ${fmtMoney(total - totalS)}`, 40, y); y+=22;
-  docpdf.setFont('helvetica','normal');
-  docpdf.text('Desenvolvido por Lucas L Custodio, V1, 2025.', 40, y);
-
-  y += 14;
-  docpdf.setFont('helvetica','bold');
-  docpdf.text(`TOTAL LANÇAMENTOS: ${fmtMoney(total)}`, 40, y); y+=16;
-  docpdf.text(`TOTAL SANGRIAS: ${fmtMoney(totalS)}`, 40, y); y+=16;
-  docpdf.text(`TOTAL CORRIGIDO: ${fmtMoney(total - totalS)}`, 40, y); y+=22;
-
-  docpdf.setFont('helvetica','normal');
-  docpdf.text('Fechamento resumido configurado para A4. Documento gerado automaticamente.', 40, y);
-
-  // Nome do arquivo no padrão brasileiro (dd-mm-aaaa)
-  const hojeNome = hoje.toLocaleDateString("pt-BR").replace(/\//g, "-");
-  const fileName = `${currentUserDoc.matricula}-${hojeNome}.pdf`;
-
-  docpdf.save(fileName);
-}
