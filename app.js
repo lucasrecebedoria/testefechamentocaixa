@@ -418,8 +418,10 @@ async function gerarRelatorioPDF() {
     docpdf.text('Fechamento resumido configurado para A4. Documento gerado automaticamente.', 40, y);
 
     // Salvar arquivo
-    const fileName = `${currentUserDoc.matricula}-${todayISO()}.pdf`;
-    docpdf.save(f
+        const fileName = `${currentUserDoc.matricula}-${todayISO()}.pdf`;
+    docpdf.save(fileName);
+  }; // fecha logo.onload
+}   // fecha gerarRelatorioPDF
 
   // =============================
   // LANÇAMENTOS EM TABELA
