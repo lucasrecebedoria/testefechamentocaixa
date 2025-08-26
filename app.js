@@ -331,7 +331,7 @@ async function gerarRelatorioPDF() {
   const logo = new Image();
   logo.src = "./assets/logo.png"; // usa a mesma logo do site
 
-  logo.onload = async function () {
+ logo.onload = async () => {
     const pageWidth = docpdf.internal.pageSize.getWidth();
     const logoWidth = 120;
     const logoHeight = 60;
