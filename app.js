@@ -338,7 +338,7 @@ async function gerarRelatorioPDF() {
   const uid = currentCaixaRef.userId;
   const cid = currentCaixaRef.caixaId;
 
-  // Helper para formatar datas padrão brasileiro
+  // Função para converter data ISO -> BR
   const formatDateBR = (dateStr) => {
     if (!dateStr) return '';
     const [year, month, day] = dateStr.split("-");
@@ -375,21 +375,23 @@ async function gerarRelatorioPDF() {
     const hoje = new Date();
     const dataHoraBR = hoje.toLocaleDateString('pt-BR') + " " + hoje.toLocaleTimeString('pt-BR');
 
+    // Pega dados do caixa (data de abertura e horário)
+    const caixaSnap = await getDoc(doc(db, 'users', uid, 'caixas', cid));
+    const caixaData = caixaSnap.data();
+    let aberturaTxt = "";
+    if (caixaData?.createdAt?.toDate) {
+      const abertura = caixaData.createdAt.toDate();
+      aberturaTxt = abertura.toLocaleDateString("pt-BR") + " " + abertura.toLocaleTimeString("pt-BR");
+    }
+
     docpdf.text(`Operador: ${currentUserDoc.nome}  • Matrícula: ${currentUserDoc.matricula}`, 40, y); 
     y += 16;
-    docpdf.text(`Data de emissão: ${dataHoraBR}`, 40, y); 
+    docpdf.text(`Data do relatório: ${dataHoraBR}`, 40, y); 
     y += 16;
-
-    // Buscar data/hora de abertura do caixa
-    const cref = doc(db, 'users', uid, 'caixas', cid);
-    const csnap = await getDoc(cref);
-    const caixaDoc = csnap.data();
-    let abertoEm = '';
-    if (caixaDoc?.createdAt?.toDate) {
-      abertoEm = caixaDoc.createdAt.toDate().toLocaleString('pt-BR');
+    if (aberturaTxt) {
+      docpdf.text(`Abertura do caixa: ${aberturaTxt}`, 40, y);
+      y += 22;
     }
-    docpdf.text(`Caixa aberto em: ${abertoEm}`, 40, y);
-    y += 22;
 
     // =============================
     // LANÇAMENTOS EM TABELA
