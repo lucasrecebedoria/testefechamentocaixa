@@ -296,6 +296,9 @@ function printThermalReceipt(data) {
   const now = new Date();
   const dt = now.toLocaleString('pt-BR');
 
+  // Converte data do caixa para formato brasileiro
+  const dataCaixaBR = data.dataCaixa ? new Date(data.dataCaixa).toLocaleDateString("pt-BR") : "";
+
   const html = `<!DOCTYPE html>
   <html><head><meta charset="utf-8">
   <title>Recibo</title>
@@ -314,7 +317,7 @@ function printThermalReceipt(data) {
   <strong>Tipo de Validador:</strong> ${data.tipoValidador}<br>
   <strong>Prefixo:</strong> ${data.prefixo}<br>
 --------------------------------------------------------------------
-  <strong>Data do Caixa:</strong> ${data.dataCaixa}<br>  
+  <strong>Data do Caixa:</strong> ${dataCaixaBR}<br>  
   <strong>Quantidade bordos:</strong> ${data.qtdBordos}<br>
   <strong>Valor:</strong> R$ ${Number(data.valor).toFixed(2)}<br> 
 --------------------------------------------------------------------
