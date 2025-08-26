@@ -252,19 +252,28 @@ $('#btnRegistrarSangria').addEventListener('click', async () => {
 });
 
 async function renderParcial() {
+  // Helper para formato BR
+  const formatDateBR = (dateStr) => {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split("-");
+    return `${day}/${month}/${year}`;
+  };
+
   // Lista simples de lançamentos + sangrias
   const base = `Usuário: ${currentUserDoc.nome} • Matrícula: ${currentUserDoc.matricula}\n`;
   const lref = collection(db, 'users', currentCaixaRef.userId, 'caixas', currentCaixaRef.caixaId, 'lancamentos');
   const sref = collection(db, 'users', currentCaixaRef.userId, 'caixas', currentCaixaRef.caixaId, 'sangrias');
   const lqs = await getDocs(query(lref, orderBy('createdAt','asc')));
   const sqs = await getDocs(query(sref, orderBy('createdAt','asc')));
+
   let total = 0;
   let out = base + '\nLANÇAMENTOS:\n';
   lqs.forEach(d => {
     const x = d.data();
     total += Number(x.valor||0);
-    out += `• ${x.dataCaixa} ${x.prefixo} ${x.tipoValidador} Qtd:${x.qtdBordos} Valor:${fmtMoney(x.valor)} Mot:${x.matriculaMotorista}\n`;
+    out += `• ${formatDateBR(x.dataCaixa)} ${x.prefixo} ${x.tipoValidador} Qtd:${x.qtdBordos} Valor:${fmtMoney(x.valor)} Mot:${x.matriculaMotorista}\n`;
   });
+
   let totalS = 0;
   if (!sqs.empty) {
     out += '\nSANGRIAS:\n';
@@ -274,9 +283,11 @@ async function renderParcial() {
       out += `• ${fmtMoney(x.valor)} — ${x.motivo}\n`;
     });
   }
+
   out += `\nTOTAL LANÇAMENTOS: ${fmtMoney(total)}\n`;
   out += `TOTAL SANGRIAS: ${fmtMoney(totalS)}\n`;
   out += `TOTAL CORRIGIDO: ${fmtMoney(total - totalS)}\n`;
+
   relatorioLista.textContent = out;
 }
 
@@ -327,6 +338,13 @@ async function gerarRelatorioPDF() {
   const uid = currentCaixaRef.userId;
   const cid = currentCaixaRef.caixaId;
 
+  // Helper para formatar datas padrão brasileiro
+  const formatDateBR = (dateStr) => {
+    if (!dateStr) return '';
+    const [year, month, day] = dateStr.split("-");
+    return `${day}/${month}/${year}`;
+  };
+
   // === Inserir logo no cabeçalho ===
   const logo = new Image();
   logo.src = "./assets/logo.png";
@@ -359,7 +377,18 @@ async function gerarRelatorioPDF() {
 
     docpdf.text(`Operador: ${currentUserDoc.nome}  • Matrícula: ${currentUserDoc.matricula}`, 40, y); 
     y += 16;
-    docpdf.text(`Data: ${dataHoraBR}`, 40, y); 
+    docpdf.text(`Data de emissão: ${dataHoraBR}`, 40, y); 
+    y += 16;
+
+    // Buscar data/hora de abertura do caixa
+    const cref = doc(db, 'users', uid, 'caixas', cid);
+    const csnap = await getDoc(cref);
+    const caixaDoc = csnap.data();
+    let abertoEm = '';
+    if (caixaDoc?.createdAt?.toDate) {
+      abertoEm = caixaDoc.createdAt.toDate().toLocaleString('pt-BR');
+    }
+    docpdf.text(`Caixa aberto em: ${abertoEm}`, 40, y);
     y += 22;
 
     // =============================
@@ -373,7 +402,7 @@ async function gerarRelatorioPDF() {
     lqs.forEach(d => {
       const x = d.data();
       lancamentosBody.push([
-        x.dataCaixa || '',
+        formatDateBR(x.dataCaixa) || '',
         x.prefixo || '',
         x.tipoValidador || '',
         x.qtdBordos || '',
@@ -446,7 +475,7 @@ async function gerarRelatorioPDF() {
     docpdf.text(`TOTAL SANGRIAS: ${fmtMoney(totalS)}`, 40, y); y+=16;
     docpdf.text(`TOTAL CORRIGIDO: ${fmtMoney(total - totalS)}`, 40, y); y+=22;
     docpdf.setFont('helvetica','normal');
-    docpdf.text('Fechamento resumido configurado para A4. Documento gerado automaticamente.', 40, y);
+    docpdf.text('Fechamento resumido. Documento gerado automaticamente.', 40, y);
 
     // Nome do arquivo no padrão brasileiro
     const hojeNome = hoje.toLocaleDateString("pt-BR").replace(/\//g, "-");
