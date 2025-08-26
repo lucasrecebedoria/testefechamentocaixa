@@ -338,13 +338,6 @@ async function gerarRelatorioPDF() {
   const uid = currentCaixaRef.userId;
   const cid = currentCaixaRef.caixaId;
 
-  // Função para converter data ISO -> BR
-  const formatDateBR = (dateStr) => {
-    if (!dateStr) return '';
-    const [year, month, day] = dateStr.split("-");
-    return `${day}/${month}/${year}`;
-  };
-
   // === Inserir logo no cabeçalho ===
   const logo = new Image();
   logo.src = "./assets/logo.png";
@@ -358,45 +351,45 @@ async function gerarRelatorioPDF() {
     docpdf.addImage(logo, 'PNG', logoX, 30, logoWidth, logoHeight);
 
     // Linha separadora
-    docpdf.setDrawColor(0, 128, 0); 
+    docpdf.setDrawColor(0, 128, 0);
     docpdf.setLineWidth(1.2);
     docpdf.line(40, 100, pageWidth - 40, 100);
 
-  // === Cabeçalho ===
-let y = 120;
-docpdf.setFont('helvetica','bold');
-docpdf.setFontSize(16);
-docpdf.text('Relatório de Fechamento de Caixa', pageWidth / 2, y, { align: 'center' });
-y += 30;
+    // === Cabeçalho ===
+    let y = 120;
+    docpdf.setFont('helvetica','bold');
+    docpdf.setFontSize(16);
+    docpdf.text('Relatório de Fechamento de Caixa', pageWidth / 2, y, { align: 'center' });
+    y += 30;
 
-// Dados do operador
-docpdf.setFontSize(11); 
-docpdf.setFont('helvetica','normal');
-const hoje = new Date();
-const dataHoraBR = hoje.toLocaleDateString('pt-BR') + " " + hoje.toLocaleTimeString('pt-BR');
+    // Dados do operador
+    docpdf.setFontSize(11);
+    docpdf.setFont('helvetica','normal');
+    const hoje = new Date();
+    const dataHoraBR = hoje.toLocaleDateString('pt-BR') + " " + hoje.toLocaleTimeString('pt-BR');
 
-// Pega dados do caixa (data de abertura e horário)
-const caixaSnap = await getDoc(doc(db, 'users', uid, 'caixas', cid));
-const caixaData = caixaSnap.data();
-let aberturaTxt = "";
-if (caixaData?.createdAt?.toDate) {
-  const abertura = caixaData.createdAt.toDate();
-  aberturaTxt = abertura.toLocaleDateString("pt-BR") + " " + abertura.toLocaleTimeString("pt-BR");
-}
+    // Pega dados do caixa (data de abertura)
+    const caixaSnap = await getDoc(doc(db, 'users', uid, 'caixas', cid));
+    const caixaData = caixaSnap.data();
+    let aberturaTxt = "";
+    if (caixaData?.createdAt?.toDate) {
+      const abertura = caixaData.createdAt.toDate();
+      aberturaTxt = abertura.toLocaleDateString("pt-BR") + " " + abertura.toLocaleTimeString("pt-BR");
+    }
 
-// Linha de operador
-docpdf.text(`Operador: ${currentUserDoc.nome}  • Matrícula: ${currentUserDoc.matricula}`, 40, y); 
-y += 16;
+    // Linha de operador
+    docpdf.text(`Operador: ${currentUserDoc.nome}  • Matrícula: ${currentUserDoc.matricula}`, 40, y);
+    y += 16;
 
-// Primeiro a abertura
-if (aberturaTxt) {
-  docpdf.text(`Abertura do caixa: ${aberturaTxt}`, 40, y);
-  y += 16;
-}
+    // Primeiro a abertura
+    if (aberturaTxt) {
+      docpdf.text(`Abertura do caixa: ${aberturaTxt}`, 40, y);
+      y += 16;
+    }
 
-// Depois a data de fechamento (emissão do PDF)
-docpdf.text(`Data do fechamento: ${dataHoraBR}`, 40, y); 
-y += 22;
+    // Depois o fechamento (emissão do PDF)
+    docpdf.text(`Data do fechamento: ${dataHoraBR}`, 40, y);
+    y += 22;
 
     // =============================
     // LANÇAMENTOS EM TABELA
@@ -409,7 +402,7 @@ y += 22;
     lqs.forEach(d => {
       const x = d.data();
       lancamentosBody.push([
-        formatDateBR(x.dataCaixa) || '',
+        new Date(x.dataCaixa).toLocaleDateString("pt-BR") || '',
         x.prefixo || '',
         x.tipoValidador || '',
         x.qtdBordos || '',
@@ -489,5 +482,5 @@ y += 22;
     const fileName = `${currentUserDoc.matricula}-${hojeNome}.pdf`;
 
     docpdf.save(fileName);
-  }; // fecha logo.onload
-}   // fecha gerarRelatorioPDF
+  };
+}
