@@ -331,7 +331,7 @@ async function gerarRelatorioPDF() {
   const logo = new Image();
   logo.src = "./assets/logo.png"; // usa a mesma logo do site
 
- logo.onload = async () => {
+  logo.onload = async () => {
     const pageWidth = docpdf.internal.pageSize.getWidth();
     const logoWidth = 120;
     const logoHeight = 60;
@@ -339,34 +339,87 @@ async function gerarRelatorioPDF() {
 
     docpdf.addImage(logo, 'PNG', logoX, 30, logoWidth, logoHeight);
 
-    // Linha separadora verde metálica logo abaixo da logo
-    docpdf.setDrawColor(0, 128, 0); // verde bandeira
+    // Linha separadora
+    docpdf.setDrawColor(0, 128, 0); 
     docpdf.setLineWidth(1.2);
     docpdf.line(40, 100, pageWidth - 40, 100);
 
+    // === Cabeçalho ===
     let y = 120;
     docpdf.setFont('helvetica','bold');
     docpdf.setFontSize(16);
     docpdf.text('Relatório de Fechamento de Caixa', pageWidth / 2, y, { align: 'center' });
     y += 30;
 
-    // === Cabeçalho com dados do operador ===
+    // Dados do operador
     docpdf.setFontSize(11); 
     docpdf.setFont('helvetica','normal');
     const hoje = new Date();
     const dataHoraBR = hoje.toLocaleDateString('pt-BR') + " " + hoje.toLocaleTimeString('pt-BR');
 
-    docpdf.text(`Operador: ${currentUserDoc.nome}  • Matrícula: ${currentUserDoc.matricula}`, 40, y); y += 16;
-    docpdf.text(`Data: ${dataHoraBR}`, 40, y); y += 22;
+    docpdf.text(`Operador: ${currentUserDoc.nome}  • Matrícula: ${currentUserDoc.matricula}`, 40, y); 
+    y += 16;
+    docpdf.text(`Data: ${dataHoraBR}`, 40, y); 
+    y += 22;
 
-    // Aqui continuam os lançamentos, sangrias e totais
-    // (mantém o código que você já tem para montar a tabela ou listar os dados)
+    // ============= Lançamentos =============
+    const lref = collection(db, 'users', uid, 'caixas', cid, 'lancamentos');
+    const lqs = await getDocs(query(lref, orderBy('createdAt','asc')));
+
+    docpdf.setFont('helvetica','bold');
+    docpdf.text('Detalhamento dos lançamentos:', 40, y);
+    y += 16;
+    docpdf.setFont('helvetica','normal');
+
+    let total = 0;
+    lqs.forEach(d => {
+      const x = d.data();
+      const line = `${x.dataCaixa} | ${x.prefixo} | ${x.tipoValidador} | Qtd:${x.qtdBordos} | Valor: ${fmtMoney(x.valor)} | Mot:${x.matriculaMotorista}`;
+      if (y > 760) { docpdf.addPage(); y = 40; }
+      docpdf.text(line, 40, y);
+      y += 14;
+      total += Number(x.valor||0);
+    });
+
+    // ============= Sangrias =============
+    y += 14;
+    docpdf.setFont('helvetica','bold');
+    docpdf.text('Sangrias registradas:', 40, y);
+    y += 16;
+    docpdf.setFont('helvetica','normal');
+
+    const sref = collection(db, 'users', uid, 'caixas', cid, 'sangrias');
+    const sqs = await getDocs(query(sref, orderBy('createdAt','asc')));
+
+    let totalS = 0;
+    if (sqs.empty) { 
+      docpdf.text('— Nenhuma', 40, y); 
+      y += 14; 
+    } else {
+      sqs.forEach(d => {
+        const x = d.data();
+        const line = `${fmtMoney(x.valor)} — Motivo: ${x.motivo}`;
+        if (y > 760) { docpdf.addPage(); y = 40; }
+        docpdf.text(line, 40, y);
+        y += 14;
+        totalS += Number(x.valor||0);
+      });
+    }
+
+    // ============= Totais =============
+    y += 14;
+    docpdf.setFont('helvetica','bold');
+    docpdf.text(`TOTAL LANÇAMENTOS: ${fmtMoney(total)}`, 40, y); y += 16;
+    docpdf.text(`TOTAL SANGRIAS: ${fmtMoney(totalS)}`, 40, y); y += 16;
+    docpdf.text(`TOTAL CORRIGIDO: ${fmtMoney(total - totalS)}`, 40, y); y += 22;
+
+    // Rodapé
+    docpdf.setFont('helvetica','normal');
+    docpdf.text('Fechamento resumido configurado para A4. Documento gerado automaticamente.', 40, y);
 
     // Salvar arquivo
     const fileName = `${currentUserDoc.matricula}-${todayISO()}.pdf`;
-    docpdf.save(fileName);
-  };
-}
+    docpdf.save(f
 
   // =============================
   // LANÇAMENTOS EM TABELA
